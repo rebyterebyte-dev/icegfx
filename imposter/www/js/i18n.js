@@ -1,0 +1,116 @@
+(function () {
+  const T = {
+    de: {
+      tagline: 'Finde den Hochstapler!',
+      playOnline: 'Online spielen', playLocal: 'Ein Handy (lokal)', howTo: 'Spielanleitung', profile: 'Mein Profil',
+      language: 'Sprache', back: 'Zurück', save: 'Speichern', yourName: 'Dein Name', namePh: 'Name eingeben…',
+      chooseChar: 'Charakter wählen', orPhoto: 'oder eigenes Foto', uploadPhoto: '📷 Foto hochladen', removePhoto: 'Foto entfernen',
+      createRoom: 'Gruppe erstellen', joinRoom: 'Gruppe beitreten', roomCode: 'Gruppen-Code', codePh: 'z. B. KX7PQ', join: 'Beitreten',
+      connecting: 'Verbinde…', lobby: 'Lobby', players: 'Spieler', host: 'Host', you: 'Du', settings: 'Einstellungen',
+      imposters: 'Anzahl Imposter', categories: 'Kategorien', all: 'Alle', none: 'Keine', timer: 'Diskussionszeit', unlimited: 'Unbegrenzt', min: 'Min.',
+      hint: 'Imposter sieht Kategorie', on: 'An', off: 'Aus', start: 'Spiel starten', waitHost: 'Warte, bis der Host startet…',
+      needPlayers: 'Mindestens 3 Spieler nötig', shareCode: 'Teile den Code mit deinen Freunden:', copyLink: '🔗 Link kopieren', copied: 'Kopiert!',
+      leave: 'Verlassen', yourCard: 'Deine Karte', holdOrSwipe: 'Gedrückt halten oder nach oben ziehen', yourWord: 'Dein Wort', youAre: 'Du bist der',
+      imposter: 'IMPOSTER', imposterTip: 'Tu so, als wüsstest du das Wort!', crewTip: 'Sag das Wort nicht – beschreib es geschickt!', category: 'Kategorie',
+      seenIt: 'Gesehen ✓', waitingOthers: 'Warte auf die anderen…', seen: 'gesehen', discuss: 'Diskussion',
+      discussTip: 'Reihum sagt jeder ein Wort, das zum Begriff passt. Wer ist verdächtig?', starts: 'beginnt!', stop: 'STOPP!',
+      stopTip: 'Drück STOPP, wenn ihr den Imposter gefunden habt', vote: 'Abstimmung', whoIsImposter: 'Wer ist der Imposter?',
+      voteFor: 'Abstimmen', voted: 'abgestimmt', youVoted: 'Du hast abgestimmt!', stoppedBy: 'hat STOPP gedrückt!',
+      result: 'Ergebnis', votedOut: 'wurde rausgewählt…', wasImposter: 'war der Imposter! 🎉', wasNotImposter: 'war KEIN Imposter! 😱',
+      tie: 'Gleichstand! Niemand wurde rausgewählt.', crewWins: 'Die Crew gewinnt!', impostersWin: 'Die Imposter gewinnen!',
+      theWord: 'Das Wort war', theImposters: 'Imposter', nextRound: 'Nächste Runde', toLobby: 'Zur Lobby', score: 'Punkte',
+      hostLeft: 'Der Host hat das Spiel verlassen.', roomNotFound: 'Gruppe nicht gefunden. Code prüfen!', connError: 'Verbindungsfehler. Internet prüfen!',
+      roomFull: 'Das Spiel läuft schon – warte auf die nächste Runde.', kicked: 'Du wurdest entfernt.',
+      addPlayer: 'Spieler hinzufügen', playerName: 'Spielername', localSetup: 'Spieler einrichten', passTo: 'Gib das Handy an', ready: 'Bereit',
+      next: 'Weiter', tapWhenReady: 'Tippe, wenn nur du aufs Display schaust', whoVotedOut: 'Wen habt ihr gewählt?', noOne: 'Niemand / Gleichstand',
+      edit: 'Bearbeiten', remove: 'Entfernen', guessWord: 'Imposter darf das Wort raten!', guessedRight: 'Richtig geraten', guessedWrong: 'Falsch geraten',
+      howToText: [
+        '🎴 Jeder bekommt eine geheime Karte. Halte sie gedrückt oder zieh sie nach oben, um dein Wort zu sehen.',
+        '🤫 Alle haben das gleiche Wort – nur der Imposter nicht. Bei ihm steht „IMPOSTER“.',
+        '🗣️ Reihum sagt jeder etwas, das zum Wort passt – aber nie das Wort selbst!',
+        '🕵️ Der Imposter muss bluffen und so tun, als kenne er das Wort.',
+        '✋ Wenn ihr euch sicher seid, drückt STOPP und stimmt ab, wer der Imposter ist.',
+        '🏆 Erwischt? Die Crew gewinnt. Sonst gewinnen die Imposter!'
+      ],
+      minutes: 'Minuten', timeUp: 'Zeit ist um!', online: 'Online', offline: 'Offline', round: 'Runde', kick: 'Entfernen',
+      invalidName: 'Bitte gib einen Namen ein', words: 'Wörter', downloadApk: 'Android-App (APK) laden', copyCode: 'Code kopieren'
+    },
+    en: {
+      tagline: 'Find the impostor!',
+      playOnline: 'Play online', playLocal: 'One phone (local)', howTo: 'How to play', profile: 'My profile',
+      language: 'Language', back: 'Back', save: 'Save', yourName: 'Your name', namePh: 'Enter name…',
+      chooseChar: 'Choose a character', orPhoto: 'or your own photo', uploadPhoto: '📷 Upload photo', removePhoto: 'Remove photo',
+      createRoom: 'Create group', joinRoom: 'Join group', roomCode: 'Group code', codePh: 'e.g. KX7PQ', join: 'Join',
+      connecting: 'Connecting…', lobby: 'Lobby', players: 'Players', host: 'Host', you: 'You', settings: 'Settings',
+      imposters: 'Number of imposters', categories: 'Categories', all: 'All', none: 'None', timer: 'Discussion time', unlimited: 'Unlimited', min: 'min',
+      hint: 'Imposter sees category', on: 'On', off: 'Off', start: 'Start game', waitHost: 'Waiting for the host to start…',
+      needPlayers: 'At least 3 players needed', shareCode: 'Share the code with your friends:', copyLink: '🔗 Copy link', copied: 'Copied!',
+      leave: 'Leave', yourCard: 'Your card', holdOrSwipe: 'Hold or swipe up', yourWord: 'Your word', youAre: 'You are the',
+      imposter: 'IMPOSTER', imposterTip: 'Pretend you know the word!', crewTip: "Don't say the word – describe it cleverly!", category: 'Category',
+      seenIt: 'Got it ✓', waitingOthers: 'Waiting for the others…', seen: 'seen', discuss: 'Discussion',
+      discussTip: 'Take turns saying one word related to it. Who is suspicious?', starts: 'starts!', stop: 'STOP!',
+      stopTip: 'Press STOP when you found the imposter', vote: 'Vote', whoIsImposter: 'Who is the imposter?',
+      voteFor: 'Vote', voted: 'voted', youVoted: 'You voted!', stoppedBy: 'pressed STOP!',
+      result: 'Result', votedOut: 'was voted out…', wasImposter: 'was the imposter! 🎉', wasNotImposter: 'was NOT the imposter! 😱',
+      tie: "It's a tie! Nobody was voted out.", crewWins: 'The crew wins!', impostersWin: 'The imposters win!',
+      theWord: 'The word was', theImposters: 'Imposters', nextRound: 'Next round', toLobby: 'Back to lobby', score: 'Points',
+      hostLeft: 'The host left the game.', roomNotFound: 'Group not found. Check the code!', connError: 'Connection error. Check your internet!',
+      roomFull: 'The game is running – wait for the next round.', kicked: 'You were removed.',
+      addPlayer: 'Add player', playerName: 'Player name', localSetup: 'Set up players', passTo: 'Pass the phone to', ready: 'Ready',
+      next: 'Next', tapWhenReady: 'Tap when only you are looking at the screen', whoVotedOut: 'Who did you vote out?', noOne: 'Nobody / tie',
+      edit: 'Edit', remove: 'Remove', guessWord: 'The imposter may guess the word!', guessedRight: 'Guessed right', guessedWrong: 'Guessed wrong',
+      howToText: [
+        '🎴 Everyone gets a secret card. Hold it or swipe it up to see your word.',
+        '🤫 Everyone has the same word – except the imposter. Their card says "IMPOSTER".',
+        '🗣️ Take turns saying something related to the word – but never the word itself!',
+        '🕵️ The imposter has to bluff and act like they know the word.',
+        '✋ When you are sure, press STOP and vote for who the imposter is.',
+        '🏆 Caught? The crew wins. Otherwise the imposters win!'
+      ],
+      minutes: 'minutes', timeUp: "Time's up!", online: 'Online', offline: 'Offline', round: 'Round', kick: 'Remove',
+      invalidName: 'Please enter a name', words: 'words', downloadApk: 'Download Android app (APK)', copyCode: 'Copy code'
+    },
+    sr: {
+      tagline: 'Pronađi uljeza!',
+      playOnline: 'Igraj onlajn', playLocal: 'Jedan telefon (lokalno)', howTo: 'Kako se igra', profile: 'Moj profil',
+      language: 'Jezik', back: 'Nazad', save: 'Sačuvaj', yourName: 'Tvoje ime', namePh: 'Unesi ime…',
+      chooseChar: 'Izaberi lika', orPhoto: 'ili svoju fotografiju', uploadPhoto: '📷 Dodaj fotografiju', removePhoto: 'Ukloni fotografiju',
+      createRoom: 'Napravi grupu', joinRoom: 'Pridruži se grupi', roomCode: 'Kod grupe', codePh: 'npr. KX7PQ', join: 'Pridruži se',
+      connecting: 'Povezivanje…', lobby: 'Lobi', players: 'Igrači', host: 'Domaćin', you: 'Ti', settings: 'Podešavanja',
+      imposters: 'Broj impostera', categories: 'Kategorije', all: 'Sve', none: 'Nijedna', timer: 'Vreme za diskusiju', unlimited: 'Neograničeno', min: 'min',
+      hint: 'Imposter vidi kategoriju', on: 'Uklj.', off: 'Isklj.', start: 'Pokreni igru', waitHost: 'Čeka se da domaćin pokrene igru…',
+      needPlayers: 'Potrebna su najmanje 3 igrača', shareCode: 'Podeli kod sa prijateljima:', copyLink: '🔗 Kopiraj link', copied: 'Kopirano!',
+      leave: 'Napusti', yourCard: 'Tvoja karta', holdOrSwipe: 'Drži pritisnuto ili povuci nagore', yourWord: 'Tvoja reč', youAre: 'Ti si',
+      imposter: 'IMPOSTER', imposterTip: 'Pretvaraj se da znaš reč!', crewTip: 'Ne izgovaraj reč – opiši je pametno!', category: 'Kategorija',
+      seenIt: 'Video sam ✓', waitingOthers: 'Čekamo ostale…', seen: 'videli', discuss: 'Diskusija',
+      discussTip: 'Redom svako kaže jednu reč povezanu sa pojmom. Ko je sumnjiv?', starts: 'počinje!', stop: 'STOP!',
+      stopTip: 'Pritisni STOP kada nađete impostera', vote: 'Glasanje', whoIsImposter: 'Ko je imposter?',
+      voteFor: 'Glasaj', voted: 'glasalo', youVoted: 'Glasao si!', stoppedBy: 'je pritisnuo STOP!',
+      result: 'Rezultat', votedOut: 'je izglasan…', wasImposter: 'je bio imposter! 🎉', wasNotImposter: 'NIJE bio imposter! 😱',
+      tie: 'Nerešeno! Niko nije izglasan.', crewWins: 'Ekipa pobeđuje!', impostersWin: 'Imposteri pobeđuju!',
+      theWord: 'Reč je bila', theImposters: 'Imposteri', nextRound: 'Sledeća runda', toLobby: 'Nazad u lobi', score: 'Poeni',
+      hostLeft: 'Domaćin je napustio igru.', roomNotFound: 'Grupa nije pronađena. Proveri kod!', connError: 'Greška u vezi. Proveri internet!',
+      roomFull: 'Igra je u toku – sačekaj sledeću rundu.', kicked: 'Uklonjen si.',
+      addPlayer: 'Dodaj igrača', playerName: 'Ime igrača', localSetup: 'Podesi igrače', passTo: 'Dodaj telefon igraču', ready: 'Spreman',
+      next: 'Dalje', tapWhenReady: 'Dodirni kad samo ti gledaš ekran', whoVotedOut: 'Koga ste izglasali?', noOne: 'Nikoga / nerešeno',
+      edit: 'Izmeni', remove: 'Ukloni', guessWord: 'Imposter sme da pogađa reč!', guessedRight: 'Pogodio', guessedWrong: 'Promašio',
+      howToText: [
+        '🎴 Svako dobija tajnu kartu. Drži je pritisnutu ili je povuci nagore da vidiš svoju reč.',
+        '🤫 Svi imaju istu reč – osim impostera. Na njegovoj karti piše „IMPOSTER“.',
+        '🗣️ Redom svako kaže nešto povezano sa rečju – ali nikad samu reč!',
+        '🕵️ Imposter mora da blefira i da se pravi da zna reč.',
+        '✋ Kada ste sigurni, pritisnite STOP i glasajte ko je imposter.',
+        '🏆 Uhvaćen? Ekipa pobeđuje. Inače pobeđuju imposteri!'
+      ],
+      minutes: 'minuta', timeUp: 'Vreme je isteklo!', online: 'Onlajn', offline: 'Oflajn', round: 'Runda', kick: 'Ukloni',
+      invalidName: 'Unesi ime', words: 'reči', downloadApk: 'Preuzmi Android aplikaciju (APK)', copyCode: 'Kopiraj kod'
+    }
+  };
+  const LANGS = [
+    { id: 'de', label: 'Deutsch', flag: '🇩🇪' },
+    { id: 'en', label: 'English', flag: '🇬🇧' },
+    { id: 'sr', label: 'Srpski', flag: '🇷🇸' }
+  ];
+  window.I18N = T;
+  window.LANGS = LANGS;
+})();
