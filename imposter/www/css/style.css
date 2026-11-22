@@ -413,3 +413,8 @@ button.ptile { cursor: pointer; }
 :root[data-size="xl"] .card-wrap { max-height: 38vh; }
 :root[data-size="xl"] .stop-btn, :root[data-size="large"] .stop-btn { width: 130px; height: 130px; font-size: 28px; }
 :root[data-size="xl"] .cover-logo { width: 80px; height: 80px; font-size: 52px; }
+.net-banner { margin: 0 16px; background: var(--red); color: #fff; font-weight: 700; text-align: center; border: 3px solid var(--ink); border-radius: 14px; padding: 8px 12px; box-shadow: 0 4px 0 var(--ink); }
+/* Kopfleiste deckt die hochgezogene Karte sauber ab */
+.topbar { background: linear-gradient(to bottom, var(--bg2) 75%, transparent); }
+.code-input::placeholder { letter-spacing: 2px; font-size: 20px; opacity: .45; }
+.logo-classic { display: inline-block; margin-bottom: 4px; background: var(--ink); color: var(--yellow); font-weight: 800; letter-spacing: 6px; font-size: 18px; padding: 3px 14px 3px 20px; border-radius: 999px; transform: rotate(-3deg); box-shadow: 0 4px 0 rgba(0,0,0,.25); }

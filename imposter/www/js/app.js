@@ -1,11 +1,10 @@
-/* IMPOSTER – Party-Spiel. Online (PeerJS/WebRTC, Host-autoritativ) + lokal (ein Gerät). */
+/* Classic Imposter – Party-Spiel. Online (MQTT-Relay, Host-autoritativ) + lokal (ein Gerät). */
 (function () {
   'use strict';
 
-  const VERSION = '1.1.0';
+  const VERSION = '1.2.0';
   const SITE_URL = 'https://classicimposter.github.io/classicimposter/';
   const APK_URL = 'https://github.com/classicimposter/classicimposter/releases/latest/download/imposter.apk';
-  const PEER_PREFIX = 'imposter-party-v1-';
   const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const MODES = ['classic', 'undercover', 'chaos', 'write'];
   const MODE_ICON = { classic: '🕵️', undercover: '🎭', chaos: '🌪️', write: '✍️' };
@@ -39,6 +38,7 @@
     profile: store.get('profile', null),
     screen: 'home', params: {}, toast: null, modal: null, drafts: {},
     net: null, G: null, V: null, L: null,
+    photos: {}, hostAway: false, netDown: false,
     dragging: false, pendingRender: false, cardUp: false, revealed: null, voteSel: null
   };
   if (!app.profile) {
@@ -103,8 +103,9 @@
 
   // ---------- UI building blocks ----------
   function avatarHTML(av, size = 64, extraCls = '') {
-    if (av && av.type === 'photo' && av.data) {
-      return `<div class="avatar photo ${extraCls}" style="width:${size}px;height:${size}px"><img src="${esc(av.data)}" alt=""></div>`;
+    const photo = av && av.type === 'photo' ? (av.data || (app.photos && app.photos[av.id])) : null;
+    if (photo) {
+      return `<div class="avatar photo ${extraCls}" style="width:${size}px;height:${size}px"><img src="${esc(photo)}" alt=""></div>`;
     }
     const id = (av && av.id) || 'blobbo';
     const c = CHARACTERS.find(c => c.id === id) || CHARACTERS[0];
@@ -357,70 +358,68 @@
   }
 
   // ---------- ONLINE: Host ----------
-  function peerOptions() {
-    const q = new URLSearchParams(location.search);
-    const ps = q.get('peer'); // für Tests: host:port
-    const o = { debug: 0, config: { iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }, { urls: 'stun:global.stun.twilio.com:3478' }
-    ] } };
-    if (ps) { const [host, port] = ps.split(':'); Object.assign(o, { host, port: Number(port), path: '/', secure: false }); }
-    return o;
-  }
+  function photoOf(p) { return p.avatar && p.avatar.type === 'photo' && p.avatar.data ? p.avatar.data : null; }
+  function publicAvatar(p) { return p.avatar && p.avatar.type === 'photo' ? { type: 'photo', id: p.id } : p.avatar; }
 
-  function hostCreate(attempt = 0) {
+  async function hostCreate() {
     leaveOnline(true);
+    if (!window.RoomNet || !RoomNet.available()) return showToast(t('connError'));
     const code = makeCode();
-    app.screen = 'connecting'; render();
-    const peer = new Peer(PEER_PREFIX + code, peerOptions());
-    app.net = { peer, isHost: true, code, conns: new Map() };
-    peer.on('open', () => {
-      const me = { id: app.profile.id, name: app.profile.name, avatar: app.profile.avatar, score: 0, online: true };
-      app.G = { code, hostId: me.id, phase: 'lobby', roundNo: 0, players: [me], settings: sanitizeSettings(store.get('settings', defaultSettings())), used: [], round: null };
-      app.screen = 'online'; hostBroadcast();
-    });
-    peer.on('connection', conn => {
-      conn.on('data', msg => hostHandle(conn, msg));
-      conn.on('close', () => hostDrop(conn));
-      conn.on('error', () => hostDrop(conn));
-    });
-    peer.on('error', err => {
-      if (err.type === 'unavailable-id' && attempt < 3) return hostCreate(attempt + 1);
-      if (app.G && err.type !== 'unavailable-id') return; // Fehler einzelner Verbindungen ignorieren
-      netError(err);
-    });
-    peer.on('disconnected', () => { try { peer.reconnect(); } catch (e) { /* ignore */ } });
+    const token = { pending: true };
+    app.net = token; app.screen = 'connecting'; render();
+    const me = { id: app.profile.id, name: app.profile.name, avatar: app.profile.avatar, score: 0, online: true };
+    const G = { code, hostId: me.id, phase: 'lobby', roundNo: 0, players: [me], settings: sanitizeSettings(store.get('settings', defaultSettings())), used: [], round: null, seq: 0 };
+    let room;
+    try {
+      room = await RoomNet.host(code, {
+        onMessage: m => { if (app.net && app.net.room === room) hostHandle(m); },
+        onReconnect: () => { if (app.net && app.net.room === room) { app.netDown = false; hostBroadcast(); } },
+        onStatus: up => { if (app.net && app.net.room === room) { app.netDown = !up; render(); } }
+      });
+    } catch (e) {
+      if (app.net === token) { app.net = null; goHome(t('connError')); }
+      return;
+    }
+    if (app.net !== token) { room.close(); return; }
+    app.net = { isHost: true, code, room, timer: null };
+    app.G = G; app.photos = {};
+    if (photoOf(me)) app.photos[me.id] = photoOf(me);
+    app.netDown = false; app.screen = 'online';
+    hostBroadcast();
   }
-  function hostHandle(conn, msg) {
+  function hostHandle(msg) {
     const G = app.G; if (!G || !msg || typeof msg !== 'object') return;
+    const pid = String(msg.from || '').slice(0, 40); if (!pid || pid === G.hostId) return;
+    let p = G.players.find(x => x.id === pid);
     if (msg.t === 'hello') {
       const pl = msg.player || {};
-      const id = String(pl.id || '').slice(0, 40); if (!id) return;
-      let p = G.players.find(x => x.id === id);
       const av = sanitizeAvatar(pl.avatar);
       const name = String(pl.name || '???').slice(0, 16);
       if (p) { p.name = name; p.avatar = av; p.online = true; }
-      else { if (G.players.length >= 20) { conn.send({ t: 'error', code: 'full' }); return; } p = { id, name, avatar: av, score: 0, online: true }; G.players.push(p); }
-      for (const [c, pid] of app.net.conns) if (pid === id && c !== conn) { app.net.conns.delete(c); try { c.close(); } catch (e) { /* ignore */ } }
-      app.net.conns.set(conn, id);
-      sfx('pop'); hostBroadcast(); return;
+      else {
+        if (G.players.length >= 20) { app.net.room.send(pid, { t: 'error', code: 'full' }); return; }
+        p = { id: pid, name, avatar: av, score: 0, online: true }; G.players.push(p); sfx('pop');
+      }
+      const photo = photoOf(p);
+      if (photo && app.photos[pid] !== photo) {
+        app.photos[pid] = photo;
+        G.players.forEach(o => { if (o.id !== G.hostId && o.id !== pid) app.net.room.send(o.id, { t: 'photos', map: { [pid]: photo } }); });
+      }
+      app.net.room.send(pid, { t: 'photos', map: app.photos });
+      hostCheckProgress(); hostBroadcast(); return;
     }
-    const pid = app.net.conns.get(conn); if (!pid) return;
+    if (!p) { app.net.room.send(pid, { t: 'rehello' }); return; }
+    if (msg.t === 'drop') {
+      if (G.phase === 'lobby') G.players = G.players.filter(x => x.id !== pid); else p.online = false;
+      hostCheckProgress(); hostBroadcast(); return;
+    }
+    if (!p.online) p.online = true;
     hostAction(pid, msg);
   }
   function sanitizeAvatar(av) {
     if (av && av.type === 'photo' && typeof av.data === 'string' && av.data.startsWith('data:image/') && av.data.length < 60000) return { type: 'photo', data: av.data };
     const id = av && CHARACTERS.find(c => c.id === av.id) ? av.id : CHARACTERS[0].id;
     return { type: 'char', id };
-  }
-  function hostDrop(conn) {
-    const pid = app.net && app.net.conns.get(conn);
-    if (!pid) return;
-    app.net.conns.delete(conn);
-    const G = app.G; if (!G) return;
-    const p = G.players.find(x => x.id === pid);
-    if (G.phase === 'lobby') G.players = G.players.filter(x => x.id !== pid);
-    else if (p) p.online = false;
-    hostCheckProgress(); hostBroadcast();
   }
   function hostAction(pid, msg) {
     const G = app.G; if (!G) return; const r = G.round; const isHost = pid === G.hostId;
@@ -444,12 +443,10 @@
         }
         break;
       case 'skipGuess': if (isHost && G.phase === 'guess') { finishRound(r, G.players, false); G.phase = 'result'; } break;
-      case 'leave': {
-        for (const [c, id] of app.net.conns) if (id === pid) { app.net.conns.delete(c); setTimeout(() => { try { c.close(); } catch (e) { /* ignore */ } }, 300); }
+      case 'leave':
         if (G.phase === 'lobby') G.players = G.players.filter(x => x.id !== pid);
         else { const p = G.players.find(x => x.id === pid); if (p) p.online = false; }
         break;
-      }
       // nur Host
       case 'settings': if (isHost && G.phase === 'lobby') { applySetting(G.settings, msg.a, msg.v, G.players.length); store.set('settings', G.settings); } break;
       case 'start':
@@ -467,7 +464,7 @@
       case 'skipClues': if (isHost && G.phase === 'clues') G.phase = 'discuss'; break;
       case 'kick':
         if (isHost && msg.target !== G.hostId) {
-          for (const [c, id] of app.net.conns) if (id === msg.target) { try { c.send({ t: 'kicked' }); } catch (e) { /* ignore */ } app.net.conns.delete(c); setTimeout(() => { try { c.close(); } catch (e) { /* ignore */ } }, 300); }
+          app.net.room.send(msg.target, { t: 'kicked' });
           G.players = G.players.filter(p => p.id !== msg.target);
         }
         break;
@@ -479,7 +476,7 @@
     const G = app.G;
     G.round.endsAt = G.settings.timer ? Date.now() + G.settings.timer * 60000 : null;
     clearTimeout(app.net.timer);
-    if (G.round.endsAt) app.net.timer = setTimeout(() => { if (G.phase === 'discuss' || G.phase === 'clues') { G.phase = 'vote'; G.round.stoppedBy = '__time'; hostBroadcast(); } }, G.settings.timer * 60000);
+    if (G.round.endsAt) app.net.timer = setTimeout(() => { if (app.G === G && (G.phase === 'discuss' || G.phase === 'clues')) { G.phase = 'vote'; G.round.stoppedBy = '__time'; hostBroadcast(); } }, G.settings.timer * 60000);
     G.phase = G.round.mode === 'write' ? 'clues' : 'discuss';
   }
   function hostFinishVote() {
@@ -501,7 +498,7 @@
   function viewFor(pid) {
     const G = app.G, r = G.round;
     const v = { code: G.code, hostId: G.hostId, me: pid, phase: G.phase, roundNo: G.roundNo, settings: G.settings,
-      players: G.players.map(p => ({ id: p.id, name: p.name, avatar: p.avatar, score: p.score || 0, online: p.online })) };
+      players: G.players.map(p => ({ id: p.id, name: p.name, avatar: publicAvatar(p), score: p.score || 0, online: p.online })) };
     if (r) {
       const part = r.participants.includes(pid), imp = r.imposters.includes(pid), done = G.phase === 'result';
       const under = r.mode === 'undercover';
@@ -522,51 +519,79 @@
   }
   function hostBroadcast() {
     if (!app.net || !app.net.isHost || !app.G) return;
-    for (const [conn, pid] of app.net.conns) { try { if (conn.open) conn.send({ t: 'state', v: viewFor(pid) }); } catch (e) { /* ignore */ } }
-    receiveView(viewFor(app.G.hostId));
+    const G = app.G; G.seq++;
+    G.players.forEach(p => { if (p.id !== G.hostId) app.net.room.send(p.id, { t: 'state', seq: G.seq, v: viewFor(p.id) }); });
+    receiveView(viewFor(G.hostId));
   }
 
-  // ---------- ONLINE: Client ----------
-  function clientJoin(code) {
-    code = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-    if (code.length < 4) return showToast(t('roomNotFound'));
+  // ---------- ONLINE: Mitspieler ----------
+  function normCode(c) { return String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+  async function clientJoin(code) {
+    code = normCode(code);
+    if (code.length !== 5) return showToast(t('roomNotFound'));
     leaveOnline(true);
-    app.screen = 'connecting'; render();
-    const peer = new Peer(peerOptions());
-    app.net = { peer, isHost: false, code, conn: null };
-    const failT = setTimeout(() => { if (app.net && app.net.peer === peer && !app.V) netError({ type: 'timeout' }); }, 15000);
-    peer.on('open', () => {
-      const conn = peer.connect(PEER_PREFIX + code, { reliable: true });
-      app.net.conn = conn;
-      conn.on('open', () => { clearTimeout(failT); conn.send({ t: 'hello', player: { id: app.profile.id, name: app.profile.name, avatar: app.profile.avatar } }); });
-      conn.on('data', msg => {
-        if (!msg) return;
-        if (msg.t === 'state') receiveView(msg.v);
-        if (msg.t === 'error') { leaveOnline(true); goHome(t('roomFull')); }
-        if (msg.t === 'kicked') { leaveOnline(true); goHome(t('kicked')); }
+    if (!window.RoomNet || !RoomNet.available()) return showToast(t('connError'));
+    const token = { pending: true };
+    app.net = token; app.screen = 'connecting'; render();
+    let room;
+    try {
+      room = await RoomNet.join(code, app.profile.id, {
+        onMessage: m => { if (app.net && app.net.room === room) clientMessage(m); },
+        onHost: s => { if (app.net && app.net.room === room) clientHostStatus(s); },
+        onReconnect: () => { if (app.net && app.net.room === room) { app.netDown = false; sendHello(); render(); } },
+        onStatus: up => { if (app.net && app.net.room === room) { app.netDown = !up; render(); } }
       });
-      conn.on('close', () => { if (app.net && app.net.conn === conn) { leaveOnline(true); goHome(t('hostLeft')); } });
-    });
-    peer.on('error', err => { clearTimeout(failT); netError(err); });
+    } catch (e) {
+      if (app.net === token) { app.net = null; goHome(e && e.message === 'notfound' ? t('roomNotFound') : t('connError')); }
+      return;
+    }
+    if (app.net !== token) { room.close(); return; }
+    app.net = { isHost: false, code, room, lastSeq: 0, helloTries: 0 };
+    app.photos = {}; app.hostAway = false; app.netDown = false;
+    sendHello();
   }
-  function netError(err) {
-    const type = err && err.type;
-    const wasClient = app.net && !app.net.isHost;
-    if (wasClient && app.V && type !== 'peer-unavailable') return;
-    leaveOnline(true);
-    goHome(type === 'peer-unavailable' ? t('roomNotFound') : t('connError'));
+  function sendHello() {
+    const n = app.net; if (!n || n.isHost || !n.room) return;
+    n.room.send({ t: 'hello', player: { name: app.profile.name, avatar: app.profile.avatar } });
+    clearTimeout(n.helloT);
+    n.helloT = setTimeout(() => {
+      if (app.net !== n || app.V) return;
+      if (++n.helloTries < 4) sendHello();
+      else { leaveOnline(true); goHome(t('connError')); }
+    }, 4000);
+  }
+  function clientMessage(m) {
+    const n = app.net;
+    if (m.t === 'state') {
+      if (m.seq && m.seq <= n.lastSeq && app.V) return;
+      n.lastSeq = m.seq || n.lastSeq; clearTimeout(n.helloT);
+      receiveView(m.v);
+    }
+    if (m.t === 'photos' && m.map) { Object.assign(app.photos, m.map); render(); }
+    if (m.t === 'rehello') sendHello();
+    if (m.t === 'error') { leaveOnline(true); goHome(t('roomFull')); }
+    if (m.t === 'kicked') { leaveOnline(true); goHome(t('kicked')); }
+  }
+  function clientHostStatus(s) {
+    const n = app.net;
+    if (s === 'closed') { leaveOnline(true); goHome(t('hostLeft')); return; }
+    clearTimeout(n.awayT);
+    app.hostAway = !s;
+    if (!s) n.awayT = setTimeout(() => { if (app.net === n && app.hostAway) { leaveOnline(true); goHome(t('hostLeft')); } }, 180000);
+    else sendHello();
+    render();
   }
   function send(msg) {
-    if (!app.net) return;
-    if (app.net.isHost) hostAction(app.G.hostId, msg);
-    else if (app.net.conn && app.net.conn.open) app.net.conn.send(msg);
+    const n = app.net; if (!n || !n.room) return;
+    if (n.isHost) hostAction(app.G.hostId, msg);
+    else n.room.send(msg);
   }
   function leaveOnline(silent) {
-    const n = app.net; app.net = null; app.G = null; app.V = null;
-    if (!n) return;
-    clearTimeout(n.timer);
-    try { if (!n.isHost && n.conn && n.conn.open && !silent) n.conn.send({ t: 'leave' }); } catch (e) { /* ignore */ }
-    setTimeout(() => { try { n.peer.destroy(); } catch (e) { /* ignore */ } }, silent ? 0 : 250);
+    const n = app.net; app.net = null; app.G = null; app.V = null; app.hostAway = false; app.netDown = false;
+    if (!n || !n.room) return;
+    clearTimeout(n.timer); clearTimeout(n.helloT); clearTimeout(n.awayT);
+    if (!n.isHost && !silent) { n.room.send({ t: 'leave' }); setTimeout(() => n.room.close(), 400); }
+    else n.room.close();
   }
   let lastPhaseKey = '';
   function receiveView(v) {
@@ -668,7 +693,8 @@
     if (!v) return screenConnecting();
     const isHost = v.me === v.hostId;
     const r = v.round;
-    const bar = title => topbar(title, 'leave');
+    const banner = app.netDown ? `<div class="net-banner">📶 ${t('reconnecting')}</div>` : (app.hostAway ? `<div class="net-banner">⏳ ${t('hostAway')}</div>` : '');
+    const bar = title => topbar(title, 'leave') + banner;
     if (v.phase === 'lobby') {
       const players = v.players.map(p => playerTile(p, {
         badge: (p.id === v.hostId ? ' 👑' : '') + (p.id === v.me ? ` <small>(${t('you')})</small>` : ''),
@@ -881,7 +907,8 @@
       <main class="screen home">
         <div class="logo-wrap">
           <div class="logo-chars">${['foxi', 'zappy', 'momo', 'grumbo', 'luma'].map((id, i) => `<div class="lc lc${i}">${avatarHTML({ type: 'char', id }, 64)}</div>`).join('')}</div>
-          <h1 class="logo" aria-label="IMPOSTER">${'IMPOSTER'.split('').map(c => `<span>${c}</span>`).join('')}</h1>
+          <div class="logo-classic">CLASSIC</div>
+          <h1 class="logo" aria-label="Classic Imposter">${'IMPOSTER'.split('').map(c => `<span>${c}</span>`).join('')}</h1>
           <div class="tagline">${t('tagline')}</div>
         </div>
         <button class="profile-card" data-a="profile">
@@ -1135,17 +1162,17 @@
     editCancel() { app.edit = null; app.drafts.name = null; app.screen = 'local'; render(); },
     howto() { app.screen = 'howto'; render(); },
     onlineMenu() { requireName(() => { app.screen = 'onlineMenu'; render(); }); },
-    create() { if (typeof Peer === 'undefined') return showToast(t('connError')); hostCreate(); },
+    create() { hostCreate(); },
     joinCode() {
       const code = draft('code', app.params.code || '');
-      app.params.code = code; if (typeof Peer === 'undefined') return showToast(t('connError'));
+      app.params.code = code;
       clientJoin(code);
     },
     leave() { guarded(() => { leaveOnline(); app.screen = 'onlineMenu'; render(); })(); },
     copyCode() { copyText(app.V.code).then(ok => ok && showToast(t('copied'))); },
     async share() {
       const link = shareLink();
-      if (navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent)) { try { await navigator.share({ title: 'IMPOSTER', text: `IMPOSTER – ${t('roomCode')}: ${app.V.code}`, url: link }); return; } catch (e) { /* fallthrough */ } }
+      if (navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent)) { try { await navigator.share({ title: 'Classic Imposter', text: `Classic Imposter – ${t('roomCode')}: ${app.V.code}`, url: link }); return; } catch (e) { /* fallthrough */ } }
       if (await copyText(link)) showToast(t('copied'));
     },
     kick(v) { send({ t: 'kick', target: v }); },

@@ -1,6 +1,6 @@
 {
-  "name": "IMPOSTER – Partyspiel",
-  "short_name": "IMPOSTER",
+  "name": "Classic Imposter – Partyspiel",
+  "short_name": "Classic Imposter",
   "start_url": "./",
   "display": "standalone",
   "orientation": "portrait",

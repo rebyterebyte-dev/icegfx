@@ -152,7 +152,7 @@
       help_result: 'Hier seht ihr, wer der Imposter war. Der Host kann eine neue Runde starten.',
       help_guess: 'Der Imposter tippt jetzt auf das Wort, das er für richtig hält.',
       modesTitle: 'Spielmodi', rounds: 'Runden', resetScores: 'Punkte zurücksetzen', saved: 'Gespeichert!',
-      maxImpNote: 'Mindestens 1 Spieler muss zur Crew gehören.', speakNow: 'ist dran!', version: 'Version'
+      maxImpNote: 'Mindestens 1 Spieler muss zur Crew gehören.', speakNow: 'ist dran!', reconnecting: 'Verbindung wird wiederhergestellt…', hostAway: 'Der Host ist kurz weg – warte auf ihn…', version: 'Version'
     },
     en: {
       appSettings: 'Settings', secEasy: 'Easy play', secLook: 'Look', secPlay: 'Gameplay', secSound: 'Sound & vibration', secData: 'Data',
@@ -188,7 +188,7 @@
       help_result: 'Here you see who the imposter was. The host can start a new round.',
       help_guess: 'The imposter now taps the word they think is right.',
       modesTitle: 'Game modes', rounds: 'Rounds', resetScores: 'Reset points', saved: 'Saved!',
-      maxImpNote: 'At least 1 player has to be in the crew.', speakNow: "it's your turn!", version: 'Version'
+      maxImpNote: 'At least 1 player has to be in the crew.', speakNow: "it's your turn!", reconnecting: 'Reconnecting…', hostAway: 'The host is away – waiting for them…', version: 'Version'
     },
     sr: {
       appSettings: 'Podešavanja', secEasy: 'Jednostavna igra', secLook: 'Izgled', secPlay: 'Igra', secSound: 'Zvuk i vibracija', secData: 'Podaci',
@@ -224,7 +224,7 @@
       help_result: 'Ovde vidite ko je bio imposter. Domaćin može da pokrene novu rundu.',
       help_guess: 'Imposter sada dodiruje reč za koju misli da je tačna.',
       modesTitle: 'Režimi igre', rounds: 'Runde', resetScores: 'Resetuj poene', saved: 'Sačuvano!',
-      maxImpNote: 'Najmanje 1 igrač mora biti u ekipi.', speakNow: 'je na redu!', version: 'Verzija'
+      maxImpNote: 'Najmanje 1 igrač mora biti u ekipi.', speakNow: 'je na redu!', reconnecting: 'Ponovno povezivanje…', hostAway: 'Domaćin je trenutno odsutan – čekamo ga…', version: 'Verzija'
     }
   };
   for (const l of Object.keys(X)) Object.assign(window.I18N[l], X[l]);
