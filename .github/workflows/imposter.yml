@@ -31,7 +31,6 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - uses: android-actions/setup-android@v3
       - name: Install
         run: npm install --no-audit --no-fund
       - name: Android-Projekt erzeugen
@@ -69,9 +68,8 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # Einmalig nötig: Repo → Settings → Pages → Source: „GitHub Actions“
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: imposter/www
