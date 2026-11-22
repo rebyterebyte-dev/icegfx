@@ -3,8 +3,8 @@
   'use strict';
 
   const VERSION = '1.1.0';
-  const SITE_URL = 'https://rebyterebyte-dev.github.io/icegfx/';
-  const APK_URL = 'https://github.com/rebyterebyte-dev/icegfx/releases/latest/download/imposter.apk';
+  const SITE_URL = 'https://classicimposter.github.io/classicimposter/';
+  const APK_URL = 'https://github.com/classicimposter/classicimposter/releases/latest/download/imposter.apk';
   const PEER_PREFIX = 'imposter-party-v1-';
   const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const MODES = ['classic', 'undercover', 'chaos', 'write'];
