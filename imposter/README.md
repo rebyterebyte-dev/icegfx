@@ -7,7 +7,11 @@ Partyspiel im Nintendo-Switch-Stil für Web und Android. Alle bekommen dasselbe 
 - 🇩🇪 🇬🇧 🇷🇸 **Sprachen:** Deutsch, English, Srpski (jeder Spieler sieht das Wort in seiner Sprache)
 - 🎭 **18 eigene Charaktere** (Blobbo, Foxi, Momo, Zappy, Nubo, Kiki, Grumbo, Luma, Tako, Bruno, Fizzy, Stella, Pingo, Rocky, Shado, Pepper, Mochi, Volto) oder ein eigenes Foto
 - 📚 **500 Wörter** in 11 Kategorien
-- ⚙️ **Einstellungen:** Anzahl Imposter, Kategorien, Diskussions-Timer, Hinweis für den Imposter
+- 🎮 **4 Spielmodi:** Klassisch, Undercover (der Imposter bekommt ein anderes Wort und weiß nichts davon), Chaos (unbekannte Anzahl Imposter), Schreib-Modus (Hinweise tippen, nur online)
+- 🎯 **Letzte Chance:** Ein erwischter Imposter darf das Wort raten und gewinnt bei richtiger Antwort doch noch
+- ⚙️ **Spiel-Einstellungen:** bis zu (Spieler − 1) Imposter, Kategorien, eigene Wörter, Timer von 1–10 Min., Kategorie-Hinweis
+- 👵 **Einfacher Modus (Oma-Modus):** große Schrift, hoher Kontrast, keine Animationen, Karte per Knopf, Erklärungen auf jedem Bildschirm, Vorlese-Knopf
+- 🎨 **App-Einstellungen:** 5 Farbthemen, 3 Schriftgrößen, Kontrast, Animationen, Töne, Vibration, Aufdeck-Art, Sprech-Reihenfolge, Bildschirm anlassen, Nachfrage vor dem Verlassen
 - 🎴 **Karten:** gedrückt halten oder nach oben ziehen, um das Wort zu sehen
 
 ## Technik
