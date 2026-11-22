@@ -361,14 +361,15 @@
   function photoOf(p) { return p.avatar && p.avatar.type === 'photo' && p.avatar.data ? p.avatar.data : null; }
   function publicAvatar(p) { return p.avatar && p.avatar.type === 'photo' ? { type: 'photo', id: p.id } : p.avatar; }
 
-  async function hostCreate() {
+  async function hostCreate(resume) {
     leaveOnline(true);
     if (!window.RoomNet || !RoomNet.available()) return showToast(t('connError'));
-    const code = makeCode();
+    const code = resume ? resume.code : makeCode();
     const token = { pending: true };
     app.net = token; app.screen = 'connecting'; render();
     const me = { id: app.profile.id, name: app.profile.name, avatar: app.profile.avatar, score: 0, online: true };
-    const G = { code, hostId: me.id, phase: 'lobby', roundNo: 0, players: [me], settings: sanitizeSettings(store.get('settings', defaultSettings())), used: [], round: null, seq: 0 };
+    const G = resume ? resume : { code, hostId: me.id, phase: 'lobby', roundNo: 0, players: [me], settings: sanitizeSettings(store.get('settings', defaultSettings())), used: [], round: null, seq: 0 };
+    if (resume) { G.players.forEach(p => { if (p.id !== G.hostId) { p.online = false; p.droppedAt = Date.now(); } }); G.seq = (G.seq || 0) + 1000; }
     let room;
     try {
       room = await RoomNet.host(code, {
@@ -377,14 +378,18 @@
         onStatus: up => { if (app.net && app.net.room === room) { app.netDown = !up; render(); } }
       });
     } catch (e) {
-      if (app.net === token) { app.net = null; goHome(t('connError')); }
+      if (app.net === token) { app.net = null; if (!resume) clearSession(); goHome(t('connError')); }
       return;
     }
     if (app.net !== token) { room.close(); return; }
     app.net = { isHost: true, code, room, timer: null };
     app.G = G; app.photos = {};
-    if (photoOf(me)) app.photos[me.id] = photoOf(me);
+    G.players.forEach(p => { if (photoOf(p)) app.photos[p.id] = photoOf(p); });
     app.netDown = false; app.screen = 'online';
+    if (resume && G.round && G.round.endsAt && (G.phase === 'discuss' || G.phase === 'clues')) {
+      const left = G.round.endsAt - Date.now();
+      app.net.timer = setTimeout(() => { if (app.G === G && (G.phase === 'discuss' || G.phase === 'clues')) { G.phase = 'vote'; G.round.stoppedBy = '__time'; hostBroadcast(); } }, Math.max(0, left));
+    }
     hostBroadcast();
   }
   function hostHandle(msg) {
@@ -395,7 +400,7 @@
       const pl = msg.player || {};
       const av = sanitizeAvatar(pl.avatar);
       const name = String(pl.name || '???').slice(0, 16);
-      if (p) { p.name = name; p.avatar = av; p.online = true; }
+      if (p) { p.name = name; p.avatar = av; p.online = true; p.droppedAt = null; }
       else {
         if (G.players.length >= 20) { app.net.room.send(pid, { t: 'error', code: 'full' }); return; }
         p = { id: pid, name, avatar: av, score: 0, online: true }; G.players.push(p); sfx('pop');
@@ -410,10 +415,11 @@
     }
     if (!p) { app.net.room.send(pid, { t: 'rehello' }); return; }
     if (msg.t === 'drop') {
-      if (G.phase === 'lobby') G.players = G.players.filter(x => x.id !== pid); else p.online = false;
+      // nicht rauswerfen: der Spieler ist evtl. nur kurz in einer anderen App
+      p.online = false; p.droppedAt = Date.now();
       hostCheckProgress(); hostBroadcast(); return;
     }
-    if (!p.online) p.online = true;
+    if (!p.online) { p.online = true; p.droppedAt = null; }
     hostAction(pid, msg);
   }
   function sanitizeAvatar(av) {
@@ -451,13 +457,13 @@
       case 'settings': if (isHost && G.phase === 'lobby') { applySetting(G.settings, msg.a, msg.v, G.players.length); store.set('settings', G.settings); } break;
       case 'start':
         if (isHost && (G.phase === 'lobby' || G.phase === 'result')) {
-          const pl = G.players.filter(p => p.online);
+          const pl = G.players.filter(p => p.online || (p.droppedAt && Date.now() - p.droppedAt < 120000));
           if (pl.length < 3) return showToast(t('needPlayers'));
           G.players = pl;
           G.round = pickRound(G.players, G.settings, G.used); G.roundNo++; G.phase = 'reveal';
         }
         break;
-      case 'lobby': if (isHost) { G.phase = 'lobby'; G.round = null; G.players = G.players.filter(p => p.online); clearTimeout(app.net.timer); } break;
+      case 'lobby': if (isHost) { G.phase = 'lobby'; G.round = null; clearTimeout(app.net.timer); } break;
       case 'resetScores': if (isHost && G.phase === 'lobby') { G.players.forEach(p => { p.score = 0; }); G.roundNo = 0; } break;
       case 'endVote': if (isHost && G.phase === 'vote') hostFinishVote(); break;
       case 'skipReveal': if (isHost && G.phase === 'reveal') hostAfterReveal(); break;
@@ -521,6 +527,7 @@
     if (!app.net || !app.net.isHost || !app.G) return;
     const G = app.G; G.seq++;
     G.players.forEach(p => { if (p.id !== G.hostId) app.net.room.send(p.id, { t: 'state', seq: G.seq, v: viewFor(p.id) }); });
+    saveSession({ role: 'host', code: G.code, G });
     receiveView(viewFor(G.hostId));
   }
 
@@ -542,12 +549,13 @@
         onStatus: up => { if (app.net && app.net.room === room) { app.netDown = !up; render(); } }
       });
     } catch (e) {
-      if (app.net === token) { app.net = null; goHome(e && e.message === 'notfound' ? t('roomNotFound') : t('connError')); }
+      if (app.net === token) { app.net = null; if (e && e.message === 'notfound') clearSession(); goHome(e && e.message === 'notfound' ? t('roomNotFound') : t('connError')); }
       return;
     }
     if (app.net !== token) { room.close(); return; }
     app.net = { isHost: false, code, room, lastSeq: 0, helloTries: 0 };
     app.photos = {}; app.hostAway = false; app.netDown = false;
+    saveSession({ role: 'client', code });
     sendHello();
   }
   function sendHello() {
@@ -556,8 +564,8 @@
     clearTimeout(n.helloT);
     n.helloT = setTimeout(() => {
       if (app.net !== n || app.V) return;
-      if (++n.helloTries < 4) sendHello();
-      else { leaveOnline(true); goHome(t('connError')); }
+      if (app.hostAway || ++n.helloTries < 8) sendHello();
+      else { leaveOnline(true); clearSession(); goHome(t('connError')); }
     }, 4000);
   }
   function clientMessage(m) {
@@ -569,15 +577,15 @@
     }
     if (m.t === 'photos' && m.map) { Object.assign(app.photos, m.map); render(); }
     if (m.t === 'rehello') sendHello();
-    if (m.t === 'error') { leaveOnline(true); goHome(t('roomFull')); }
-    if (m.t === 'kicked') { leaveOnline(true); goHome(t('kicked')); }
+    if (m.t === 'error') { leaveOnline(true); clearSession(); goHome(t('roomFull')); }
+    if (m.t === 'kicked') { leaveOnline(true); clearSession(); goHome(t('kicked')); }
   }
   function clientHostStatus(s) {
     const n = app.net;
-    if (s === 'closed') { leaveOnline(true); goHome(t('hostLeft')); return; }
+    if (s === 'closed') { leaveOnline(true); clearSession(); goHome(t('hostLeft')); return; }
     clearTimeout(n.awayT);
     app.hostAway = !s;
-    if (!s) n.awayT = setTimeout(() => { if (app.net === n && app.hostAway) { leaveOnline(true); goHome(t('hostLeft')); } }, 180000);
+    if (!s) n.awayT = setTimeout(() => { if (app.net === n && app.hostAway) { leaveOnline(true); clearSession(); goHome(t('hostLeft')); } }, 600000);
     else sendHello();
     render();
   }
@@ -585,6 +593,25 @@
     const n = app.net; if (!n || !n.room) return;
     if (n.isHost) hostAction(app.G.hostId, msg);
     else n.room.send(msg);
+  }
+  function saveSession(sess) {
+    sess.ts = Date.now();
+    try { localStorage.setItem('imp_session', JSON.stringify(sess)); } catch (e) {
+      if (sess.G) { try { const G2 = JSON.parse(JSON.stringify(sess.G)); G2.players.forEach(p => { if (p.avatar && p.avatar.type === 'photo') p.avatar = { type: 'char', id: CHARACTERS[0].id }; }); localStorage.setItem('imp_session', JSON.stringify(Object.assign({}, sess, { G: G2 }))); } catch (e2) { /* ignore */ } }
+    }
+  }
+  function clearSession() { try { localStorage.removeItem('imp_session'); } catch (e) { /* ignore */ } }
+  function resumeSession() {
+    const s = store.get('session', null);
+    if (!s || !s.code || Date.now() - (s.ts || 0) > 3 * 3600 * 1000) return false;
+    if (s.role === 'host' && s.G && s.G.hostId === app.profile.id) { hostCreate(s.G); return true; }
+    if (s.role === 'client') { clientJoin(s.code); return true; }
+    return false;
+  }
+  function wakeNet() {
+    const n = app.net; if (!n || !n.room) return;
+    n.room.wake && n.room.wake();
+    if (!n.isHost) sendHello();
   }
   function leaveOnline(silent) {
     const n = app.net; app.net = null; app.G = null; app.V = null; app.hostAway = false; app.netDown = false;
@@ -1020,7 +1047,8 @@
     </main>`;
   }
   function screenConnecting() {
-    return `${topbar(t('connecting'), 'leave')}<main class="screen center-screen"><div class="spinner"></div><h2>${t('connecting')}</h2></main>`;
+    const msg = app.hostAway ? `<div class="net-banner">⏳ ${t('hostAway')}</div>` : '';
+    return `${topbar(t('connecting'), 'leave')}<main class="screen center-screen"><div class="spinner"></div><h2>${t('connecting')}</h2>${msg}</main>`;
   }
 
   // ---------- Render ----------
@@ -1114,7 +1142,7 @@
 
   // ---------- Actions ----------
   const actions = {
-    home() { leaveOnline(); app.screen = 'home'; render(); },
+    home() { if (app.net) clearSession(); leaveOnline(); app.screen = 'home'; render(); },
     lang(v) { app.lang = v; store.set('lang', v); render(); },
     langCycle() { const i = LANGS.findIndex(l => l.id === app.lang); actions.lang(LANGS[(i + 1) % LANGS.length].id); },
     openSettings() { app.screen = 'settings'; render(); },
@@ -1168,7 +1196,7 @@
       app.params.code = code;
       clientJoin(code);
     },
-    leave() { guarded(() => { leaveOnline(); app.screen = 'onlineMenu'; render(); })(); },
+    leave() { guarded(() => { leaveOnline(); clearSession(); app.screen = 'onlineMenu'; render(); })(); },
     copyCode() { copyText(app.V.code).then(ok => ok && showToast(t('copied'))); },
     async share() {
       const link = shareLink();
@@ -1265,11 +1293,16 @@
     if (e.target.id === 'nameInput') actions.editSave();
     if (e.target.id === 'clueInput') actions.sendClue();
   });
-  window.addEventListener('beforeunload', () => leaveOnline());
+  // Beim Zurückkommen in die App/Seite sofort neu verbinden
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') wakeNet(); });
+  window.addEventListener('online', wakeNet);
+  window.addEventListener('pageshow', wakeNet);
+  window.addEventListener('focus', wakeNet);
 
   // Android-Zurück-Taste (Capacitor)
   try {
     const CapApp = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+    if (CapApp) CapApp.addListener('resume', wakeNet);
     if (CapApp) CapApp.addListener('backButton', () => {
       if (app.modal) return actions.modalNo();
       if (app.screen === 'home') CapApp.exitApp();
@@ -1284,7 +1317,10 @@
   // Deep-Link ?room=CODE
   applyCfg();
   const qRoom = new URLSearchParams(location.search).get('room');
-  if (qRoom) {
+  const prevSess = store.get('session', null);
+  if (app.profile.name && (!qRoom || (prevSess && prevSess.code === normCode(qRoom))) && resumeSession()) {
+    // Verbindung zur letzten Gruppe wird wiederhergestellt
+  } else if (qRoom) {
     app.params.code = qRoom.toUpperCase();
     requireName(() => { app.screen = 'onlineMenu'; render(); });
   }
